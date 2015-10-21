@@ -67,9 +67,9 @@ func main() {
 
 func isUsefulFileType(filename string) bool {
 	if strings.Contains(filename, ".html") || strings.Contains(filename, ".cond") || strings.Contains(filename, ".java") || strings.Contains(filename, ".part") {
-		return true;
+		return true
 	}
-	return false;
+	return false
 }
 
 func Decode(base64str string) []byte {
