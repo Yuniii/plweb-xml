@@ -4,6 +4,8 @@ import (
 	"io/ioutil"
 	"strings"
 	"fmt"
+	"sync"
+	"strconv"
 	"encoding/xml"
 	"encoding/base64"
 	"github.com/qiniu/iconv"
@@ -27,10 +29,20 @@ type Lesson struct {
 	Files []File `xml:"file"`
 }
 
+var wg sync.WaitGroup
+
 func main() {
+	for i := 1; i <= 24; i++ {
+		wg.Add(1)
+		go processFile("xml/247/lesson" + strconv.Itoa(i) + ".xml", "lesson" + strconv.Itoa(i) + ".xml")
+	}
+	wg.Wait()
+}
+
+func processFile(filename, outputFilename string) {
 	lesson := Lesson{}
 
-	xmlFile, err := ioutil.ReadFile("xml/247/lesson1.xml")
+	xmlFile, err := ioutil.ReadFile(filename)
 	if err != nil {
 		fmt.Printf("read file err: %v", err)
 		return
@@ -42,31 +54,32 @@ func main() {
 		return
 	}
 
-	var filename, content string
+	var path, content string
 	newXmlContent := &Lesson{}
 
 	cd, _ := iconv.Open("UTF-8", "big5")
 	defer cd.Close()
 
 	for i := 0; i < len(lesson.Files); i++ {
-		filename = lesson.Files[i].Path
+		path = lesson.Files[i].Path
 		
-		if  ! isUsefulFileType(filename) {
+		if  ! isUsefulFileType(path) {
 			continue
 		}
 
 		content = DecodeStr(lesson.Files[i].Content)
-		if strings.Contains(filename, ".cond") {
+		if strings.Contains(path, ".cond") {
 			content = cd.ConvString(content)
 		}
-		newXmlContent.Files = append(newXmlContent.Files, File{filename, content})
+		newXmlContent.Files = append(newXmlContent.Files, File{path, content})
 	}
 	newXmlOutput, _ := xml.MarshalIndent(newXmlContent, "", "  ")
-	_ = ioutil.WriteFile("output/1.xml", newXmlOutput, 0644)
+	_ = ioutil.WriteFile("output/" + outputFilename, newXmlOutput, 0644)
+	defer wg.Done()
 }
 
-func isUsefulFileType(filename string) bool {
-	if strings.Contains(filename, ".html") || strings.Contains(filename, ".cond") || strings.Contains(filename, ".java") || strings.Contains(filename, ".part") {
+func isUsefulFileType(path string) bool {
+	if strings.Contains(path, ".html") || strings.Contains(path, ".cond") || strings.Contains(path, ".java") || strings.Contains(path, ".part") {
 		return true
 	}
 	return false
