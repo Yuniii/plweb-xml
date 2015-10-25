@@ -32,7 +32,7 @@ type Lesson struct {
 var wg sync.WaitGroup
 
 func main() {
-	for i := 1; i <= 24; i++ {
+	for i := 1; i <= 1; i++ {
 		wg.Add(1)
 		go processFile("xml/247/lesson" + strconv.Itoa(i) + ".xml", "lesson" + strconv.Itoa(i) + ".xml")
 	}
@@ -40,18 +40,9 @@ func main() {
 }
 
 func processFile(filename, outputFilename string) {
-	lesson := Lesson{}
-
-	xmlFile, err := ioutil.ReadFile(filename)
+	lesson, err := parseLessonXml(filename)
 	if err != nil {
-		fmt.Printf("read file err: %v", err)
-		return
-	}
-
-	err = xml.Unmarshal(xmlFile, &lesson)
-	if err != nil {
-		fmt.Printf("parse xml err: %v", err)
-		return
+		fmt.Printf("err: %v", err)
 	}
 
 	var path, content string
@@ -62,7 +53,6 @@ func processFile(filename, outputFilename string) {
 
 	for i := 0; i < len(lesson.Files); i++ {
 		path = lesson.Files[i].Path
-		
 		if  ! isUsefulFileType(path) {
 			continue
 		}
@@ -73,12 +63,46 @@ func processFile(filename, outputFilename string) {
 		}
 		newXmlContent.Files = append(newXmlContent.Files, File{path, content})
 	}
-	newXmlOutput, _ := xml.MarshalIndent(newXmlContent, "", "  ")
-	_ = ioutil.WriteFile("output/" + outputFilename, newXmlOutput, 0644)
+
+	err = outputNewXml("output/" + outputFilename, newXmlContent)
+	if err != nil {
+		fmt.Printf("err: %v", err)
+	}
+	
 	defer wg.Done()
 }
 
+func parseLessonXml(filename string) (Lesson, error) {
+	lesson := Lesson{}
+	xmlFile, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return lesson, err
+	}
+
+	err = xml.Unmarshal(xmlFile, &lesson)
+	if err != nil {
+		return lesson, err
+	}
+
+	return lesson, nil
+}
+
+func outputNewXml(path string, lesson *Lesson) error {
+	newXmlOutput, err := xml.MarshalIndent(lesson, "", "  ")
+	if err != nil {
+		return err
+	}
+	err = ioutil.WriteFile(path, newXmlOutput, 0644)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func isUsefulFileType(path string) bool {
+	if strings.Contains(path, "#save#") {
+		return false
+	}
 	if strings.Contains(path, ".html") || strings.Contains(path, ".cond") || strings.Contains(path, ".java") || strings.Contains(path, ".part") {
 		return true
 	}
